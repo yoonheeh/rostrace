@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  roscore:
+    image: rostrace-demo
+    container_name: roscore_queue
+    pid: host
+    network_mode: host
+    command: 
+      - "bash"
+      - "-c"
+      - "source /catkin_ws/devel/setup.bash && roscore"
+
+  # The scenario node: BLOCKS thread with service
+  scenario:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile
+    image: rostrace-demo
+    container_name: scenario_queue
+    privileged: true
+    pid: host
+    network_mode: host
+    environment:
+      - ROS_MASTER_URI=http://localhost:11311
+    depends_on:
+      - roscore
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
+    command: 
+      - "bash"
+      - "-c"
+      - |
+        source /catkin_ws/devel/setup.bash
+        until rostopic list; do sleep 1; done
+        # Run ONLY the service blocker node
+        rosrun scenarios service_blocker_node
+
+  driver:
+    image: rostrace-demo
+    container_name: driver_queue
+    pid: host
+    network_mode: host
+    environment:
+      - ROS_MASTER_URI=http://localhost:11311
+    depends_on:
+      - scenario
+    command: 
+      - "bash"
+      - "-c"
+      - |
+        source /catkin_ws/devel/setup.bash
+        sleep 2
+        rosrun scenarios load_driver.py
+
+  tool:
+    image: rostrace-demo
+    container_name: rostrace_tool_queue
+    privileged: true
+    pid: host
+    network_mode: host
+    environment:
+      - ROS_MASTER_URI=http://localhost:11311
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
+    stdin_open: true
+    tty: true
+    command: 
+      - "bash"
+      - "-c"
+      - "source /catkin_ws/devel/setup.bash && echo 'Run: rostrace trace --node /service_blocker_node --topic /blocked_topic' && sleep infinity"

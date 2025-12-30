@@ -1,0 +1,99 @@
+#!/usr/bin/env bpftrace
+
+// usage: sudo bpftrace topics.bt <PID>
+
+BEGIN
+{
+    printf("Tracing ROS 1 latency for PID %d... Ctrl-C to end.\n", $1);
+    @push_count = (uint64)0;
+    @pop_count = (uint64)0;
+}
+
+// -----------------------------------------------------------------------------
+// 1. Serialization Latency
+//    Measured from handleMessage entry until it is pushed to the queue.
+// -----------------------------------------------------------------------------
+
+uprobe:{{LIBROSCPP_PATH}}:{{SYMBOL_HANDLE_MESSAGE}}
+{
+    if (pid == (uint32)$1) {
+        @start_serialize[tid] = nsecs;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 2. Queuing Latency
+//    Measured from addCallback (Push) to callOneCB (Pop).
+//    Uses a global FIFO counter to match messages across threads.
+// -----------------------------------------------------------------------------
+
+uprobe:{{LIBROSCPP_PATH}}:{{SYMBOL_ADD_CALLBACK}}
+{
+    if (pid == (uint32)$1) {
+        $now = nsecs;
+
+        // Calculate Serialization Latency (matching by TID)
+        $s_start = @start_serialize[tid];
+        if ($s_start) {
+            @serialization_latency_us = hist(($now - $s_start) / 1000);
+            delete(@start_serialize[tid]);
+        }
+
+        // Record entry into queue for Queuing Latency
+        // We use a global counter to match FIFO order across threads
+        @q_timestamps[@push_count] = $now;
+        @push_count++;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 3. Processing Latency
+//    Measured from callOneCB start to return.
+// -----------------------------------------------------------------------------
+
+uprobe:{{LIBROSCPP_PATH}}:{{SYMBOL_CALL_ONE_CB}}
+{
+    if (pid == (uint32)$1) {
+        $now = nsecs;
+        
+        // Calculate Queuing Latency (matching by global FIFO index)
+        $q_start = @q_timestamps[@pop_count];
+        if ($q_start) {
+            @queuing_latency_us = hist(($now - $q_start) / 1000);
+            delete(@q_timestamps[@pop_count]);
+            @pop_count++;
+        }
+
+        @cb_start[tid] = $now;
+    }
+}
+
+uretprobe:{{LIBROSCPP_PATH}}:{{SYMBOL_CALL_ONE_CB}}
+{
+    if (pid == (uint32)$1) {
+        $end = nsecs;
+        $start = @cb_start[tid];
+        if ($start) {
+            @processing_latency_us = hist(($end - $start) / 1000);
+            delete(@cb_start[tid]);
+        }
+    }
+}
+
+END
+{
+    printf("\n\n1. Serialization Latency (us):\n");
+    print(@serialization_latency_us);
+
+    printf("\n\n2. Queuing Latency (us):\n");
+    print(@queuing_latency_us);
+
+    printf("\n\n3. Processing Latency (us):\n");
+    print(@processing_latency_us);
+
+    clear(@start_serialize);
+    clear(@q_timestamps);
+    clear(@cb_start);
+    clear(@push_count);
+    clear(@pop_count);
+}

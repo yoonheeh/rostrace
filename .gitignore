@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# ROS / Catkin
+devel/
+logs/
+build/
+install/
+.catkin_tools/
+
+# Environment / IDEs
+.venv/
+venv/
+.env
+.vscode/
+.idea/
+.DS_Store
