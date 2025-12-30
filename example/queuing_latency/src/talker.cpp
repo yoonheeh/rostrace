@@ -2,15 +2,13 @@
 #include "std_msgs/String.h"
 #include <sstream>
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   ros::init(argc, argv, "talker");
   ros::NodeHandle nh;
   ros::Publisher pub = nh.advertise<std_msgs::String>("my_topic", 20);
   ros::Rate loop_rate(20); // 20 Hz
 
-  while (ros::ok())
-  {
+  while (ros::ok()) {
     std_msgs::String msg;
     std::stringstream ss;
     ss << "hello world " << ros::Time::now();

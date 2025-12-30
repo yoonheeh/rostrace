@@ -55,7 +55,7 @@ uprobe:{{LIBROSCPP_PATH}}:{{SYMBOL_CALL_ONE_CB}}
 {
     if (pid == (uint32)$1) {
         $now = nsecs;
-        
+
         // Calculate Queuing Latency (matching by global FIFO index)
         $q_start = @q_timestamps[@pop_count];
         if ($q_start) {

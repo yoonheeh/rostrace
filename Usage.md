@@ -4,7 +4,7 @@ This guide explains how to use `rostrace` to identify and debug latency in your 
 
 ## 1. Quick Start with Demos (Docker)
 
-We provide pre-packaged demos using Docker Compose. These scenarios simulate common 
+We provide pre-packaged demos using Docker Compose. These scenarios simulate common
 latency issues without requiring any installation on your host machine.
 
 ### Prerequisites
@@ -13,8 +13,8 @@ latency issues without requiring any installation on your host machine.
 
 ### 1.1 The Streamlined Way (Recommended)
 
-To make tracing as seamless as possible, we provide a wrapper script 
-`./rostrace-docker` in the project root. This script automatically handles all 
+To make tracing as seamless as possible, we provide a wrapper script
+`./rostrace-docker` in the project root. This script automatically handles all
 the complex Docker flags required for eBPF tracing.
 
 ```bash
@@ -37,7 +37,7 @@ In this scenario, a node has a callback that takes ~200ms to complete.
 You will see an output like below:
 ```
 1. Serialization Latency (us):
-@serialization_latency_us: 
+@serialization_latency_us:
 [2, 4)                 1 |@                                                   |
 [4, 8)                50 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
 [8, 16)                5 |@@@@@                                               |
@@ -46,22 +46,22 @@ You will see an output like below:
 
 
 2. Queuing Latency (us):
-@queuing_latency_us: 
+@queuing_latency_us:
 [128K, 256K)          57 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
 
 
 
 3. Processing Latency (us):
-@processing_latency_us: 
+@processing_latency_us:
 [128K, 256K)          56 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
 ```
 
-You can see that due to **High Processing Latency** (~200ms), the node cannot 
-keep up with incoming messages. This causes them to back up, leading to a direct 
+You can see that due to **High Processing Latency** (~200ms), the node cannot
+keep up with incoming messages. This causes them to back up, leading to a direct
 increase in **Queuing Latency** (also ~200ms). The serialization overhead remains negligible.
 
 ### Scenario B: Queuing Latency (Service Blocking)
-In this scenario, a node is busy handling a heavy service call, causing incoming 
+In this scenario, a node is busy handling a heavy service call, causing incoming
 topic messages to wait in the queue.
 
 1.  **Start the environment**:
@@ -76,7 +76,7 @@ topic messages to wait in the queue.
 You will see an output like below:
 ```
 1. Serialization Latency (us):
-@serialization_latency_us: 
+@serialization_latency_us:
 [4, 8)               128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
 [8, 16)               19 |@@@@@@@                                             |
 [16, 32)              33 |@@@@@@@@@@@@@                                       |
@@ -85,7 +85,7 @@ You will see an output like below:
 
 
 2. Queuing Latency (us):
-@queuing_latency_us: 
+@queuing_latency_us:
 [8, 16)                9 |@@@@@@                                              |
 [16, 32)              31 |@@@@@@@@@@@@@@@@@@@@@@@@                            |
 [32, 64)              67 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
@@ -106,7 +106,7 @@ You will see an output like below:
 
 
 3. Processing Latency (us):
-@processing_latency_us: 
+@processing_latency_us:
 [8, 16)               28 |@@@@@@@@@@@@@@                                      |
 [16, 32)              29 |@@@@@@@@@@@@@@@                                     |
 [32, 64)              99 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
@@ -126,12 +126,12 @@ You will see an output like below:
 
 ```
 
-This scenario reveals a **bimodal distribution** in Processing Latency. The 
-cluster in the microseconds range represents your fast topic callbacks. The 
-cluster at ~500ms represents the `heavy_service` handler blocking the main thread. 
+This scenario reveals a **bimodal distribution** in Processing Latency. The
+cluster in the microseconds range represents your fast topic callbacks. The
+cluster at ~500ms represents the `heavy_service` handler blocking the main thread.
 
-Note how the **Queuing Latency** shows a wide spread: messages that arrive while 
-the service is running are forced to wait, while messages that arrive when the 
+Note how the **Queuing Latency** shows a wide spread: messages that arrive while
+the service is running are forced to wait, while messages that arrive when the
 thread is free are processed instantly. This is a classic "Thread Starvation" pattern.
 
 
@@ -161,7 +161,7 @@ rosrun rostrace rostrace trace --node /my_node_name --topic /my_topic_name
 ## 3. Advanced Configuration
 
 ### Explicit Library Path (`--lib`)
-If `rostrace` cannot automatically find `libroscpp.so` (common in custom builds 
+If `rostrace` cannot automatically find `libroscpp.so` (common in custom builds
 or statically linked environments), you can provide the path explicitly:
 
 ```bash
@@ -175,7 +175,7 @@ If you prefer to run the Python logic in a virtual environment:
 3.  Note: You still need `bpftrace` installed on your system.
 
 ### Troubleshooting
-- **Missing DebugFS**: If you see "Kernel debug filesystem not found", ensure 
+- **Missing DebugFS**: If you see "Kernel debug filesystem not found", ensure
 `/sys/kernel/debug` is mounted. On host: `sudo mount -t debugfs none /sys/kernel/debug`.
-- **Permissions**: `rostrace` requires root privileges to attach eBPF probes. 
+- **Permissions**: `rostrace` requires root privileges to attach eBPF probes.
 It will attempt to use `sudo` automatically if not run as root.

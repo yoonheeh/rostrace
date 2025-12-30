@@ -4,7 +4,7 @@ services:
     container_name: roscore_proc
     pid: host
     network_mode: host
-    command: 
+    command:
       - "bash"
       - "-c"
       - "source /catkin_ws/devel/setup.bash && roscore"
@@ -27,7 +27,7 @@ services:
       - /sys/kernel/debug:/sys/kernel/debug:rw
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
-    command: 
+    command:
       - "bash"
       - "-c"
       - |
@@ -45,7 +45,7 @@ services:
       - ROS_MASTER_URI=http://localhost:11311
     depends_on:
       - scenario
-    command: 
+    command:
       - "bash"
       - "-c"
       - |
@@ -67,7 +67,7 @@ services:
       - /usr/src:/usr/src:ro
     stdin_open: true
     tty: true
-    command: 
+    command:
       - "bash"
       - "-c"
       - "source /catkin_ws/devel/setup.bash && echo 'Run: rostrace trace --node /processing_delay_node --topic /slow_topic' && sleep infinity"
