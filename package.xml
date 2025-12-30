@@ -3,7 +3,7 @@
   <name>rostrace</name>
   <version>0.1.0</version>
   <description>
-    A zero-instrumentation, kernel-level observability suite for debugging 
+    A zero-instrumentation, kernel-level observability suite for debugging
     non-deterministic latency in distributed robotic systems using eBPF.
   </description>
 
@@ -14,7 +14,7 @@
 
   <exec_depend>python3</exec_depend>
   <exec_depend>bpftrace</exec_depend>
-  <!-- We might need roscpp/rospy if we interact with ROS directly, 
+  <!-- We might need roscpp/rospy if we interact with ROS directly,
        but for now focusing on the observability part -->
 
   <export>

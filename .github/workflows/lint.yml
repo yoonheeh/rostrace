@@ -1,0 +1,23 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Run pre-commit
+      uses: pre-commit/action@v3.0.1
+      # This action will fail the build if any files would be modified by the hooks.
+      # It does NOT commit or push any changes back to the repo.
