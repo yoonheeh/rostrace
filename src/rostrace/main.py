@@ -1,0 +1,52 @@
+import sys
+import argparse
+import logging
+from typing import List, Optional
+from rostrace.runner import Runner
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    parser = argparse.ArgumentParser(
+        description="rostrace: eBPF-based ROS observability")
+    parser.add_argument("--verbose",
+                        "-v",
+                        action="store_true",
+                        help="Enable verbose debug logging")
+
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+
+    # Command: trace
+    trace_parser = subparsers.add_parser("trace",
+                                         help="Trace ROS message latency")
+    trace_parser.add_argument("--pid",
+                              type=int,
+                              help="PID of the ROS node to trace")
+    trace_parser.add_argument(
+        "--node",
+        type=str,
+        help="Name of the ROS node to trace (resolves PID automatically)")
+    trace_parser.add_argument("--topic", type=str, help="Filter by topic name")
+    trace_parser.add_argument(
+        "--lib",
+        type=str,
+        help="Manually specify path to libroscpp.so (overrides auto-detection)"
+    )
+
+    args = parser.parse_args(argv)
+
+    # Configure logging
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
+
+    if args.command == "trace":
+        runner = Runner(args)
+        runner.run()
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
