@@ -28,10 +28,11 @@ RUN apt-get update && \
     rosdep update && \
     rosdep install --from-paths src --ignore-src -r -y
 
+# Build the catkin workspace (rostrace tool + queuing_latency example)
 RUN /bin/bash -c ". /opt/ros/noetic/setup.bash; catkin_make"
 
-# Global symlink for rostrace
-RUN ln -s /catkin_ws/src/rostrace/scripts/rostrace /usr/local/bin/rostrace
+# Install rostrace as a python package so it is available globally
+RUN pip3 install /catkin_ws/src/rostrace
 
 # No ENTRYPOINT - let the user or Compose define the command
 CMD ["bash"]

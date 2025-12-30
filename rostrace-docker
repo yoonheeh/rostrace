@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# rostrace-docker: A wrapper to run the containerized tool as if it were native.
+# This handles all the complex eBPF requirements (privileged, pid host, debugfs).
+
+IMAGE_NAME="rostrace-demo"
+
+# Ensure the image is built
+if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]]; then
+  echo "Image $IMAGE_NAME not found. Building it now..."
+  docker build -t $IMAGE_NAME -f demo/Dockerfile .
+fi
+
+# Run the tool
+# --rm: Clean up the container on exit
+# --privileged: Grant kernel access for bpftrace
+# --pid host: Allow seeing host processes (and other containers)
+# --network host: Connect to host ROS Master
+# -v ...: Mount necessary kernel interfaces
+docker run -it --rm \
+    --privileged \
+    --pid host \
+    --network host \
+    -v /sys/kernel/debug:/sys/kernel/debug:rw \
+    -v /lib/modules:/lib/modules:ro \
+    -v /usr/src:/usr/src:ro \
+    $IMAGE_NAME \
+    rostrace "$@"
