@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools", "wheel", "catkin_pkg"]
+build-backend = "setuptools.build_meta"
+
 [tool.ruff]
 line-length = 88
 target-version = "py38"
