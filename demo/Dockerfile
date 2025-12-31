@@ -1,4 +1,5 @@
-# Dockerfile for creating a ROS1 Noetic demo environment for rostrace
+# Dockerfile for creating a ROS1 Noetic demo environment
+# This image includes the rostrace tool AND compiled C++ examples (scenarios)
 FROM ros:noetic-ros-base
 
 # Install system dependencies
@@ -14,10 +15,12 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /catkin_ws/src
 WORKDIR /catkin_ws/src
 
-# Copy project
+# Copy the entire project context (including examples)
+# Note: The build context must be the repository root
 COPY . /catkin_ws/src/rostrace
 
-# Organize packages
+# Organize packages for compilation
+# We move the example packages to the top level of the workspace
 RUN mv /catkin_ws/src/rostrace/example/queuing_latency /catkin_ws/src/queuing_latency
 RUN mv /catkin_ws/src/rostrace/example/scenarios /catkin_ws/src/scenarios
 
@@ -28,11 +31,10 @@ RUN apt-get update && \
     rosdep update && \
     rosdep install --from-paths src --ignore-src -r -y
 
-# Build the catkin workspace (rostrace tool + queuing_latency example)
+# Build the catkin workspace (tool + examples)
 RUN /bin/bash -c ". /opt/ros/noetic/setup.bash; catkin_make"
 
-# Install rostrace as a python package so it is available globally
+# Install rostrace as a python package
 RUN pip3 install /catkin_ws/src/rostrace
 
-# No ENTRYPOINT - let the user or Compose define the command
 CMD ["bash"]
