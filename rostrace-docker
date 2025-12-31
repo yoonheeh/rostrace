@@ -3,12 +3,12 @@
 # rostrace-docker: A wrapper to run the containerized tool as if it were native.
 # This handles all the complex eBPF requirements (privileged, pid host, debugfs).
 
-IMAGE_NAME="rostrace-demo"
+IMAGE_NAME="rostrace"
 
 # Ensure the image is built
 if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]]; then
   echo "Image $IMAGE_NAME not found. Building it now..."
-  docker build -t $IMAGE_NAME -f demo/Dockerfile .
+  docker build -t $IMAGE_NAME -f Dockerfile .
 fi
 
 # Run the tool

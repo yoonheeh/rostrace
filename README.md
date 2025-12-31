@@ -7,12 +7,11 @@ multi-process ROS systems.
 The fastest way to see `rostrace` in action is using our Docker-based demos:
 
 ```bash
-# Start the demo environment
+# 1. Start the demo environment (Terminal 1)
 docker compose -f demo/docker-compose.processing.yml up --build
 
-# Run the trace tool
-docker exec -it rostrace_tool_proc bash
-rostrace trace --node /processing_delay_node --topic /slow_topic
+# 2. Run the trace tool (Terminal 2)
+./rostrace-docker trace --node /processing_delay_node --topic /slow_topic
 ```
 
 For detailed instructions on running native nodes on your host, advanced configuration, and troubleshooting, see the [**Usage Guide**](Usage.md).

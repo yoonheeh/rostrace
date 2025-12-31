@@ -23,10 +23,6 @@ services:
       - ROS_MASTER_URI=http://localhost:11311
     depends_on:
       - roscore
-    volumes:
-      - /sys/kernel/debug:/sys/kernel/debug:rw
-      - /lib/modules:/lib/modules:ro
-      - /usr/src:/usr/src:ro
     command:
       - "bash"
       - "-c"
@@ -52,22 +48,3 @@ services:
         source /catkin_ws/devel/setup.bash
         sleep 2
         rosrun scenarios load_driver.py
-
-  tool:
-    image: rostrace-demo
-    container_name: rostrace_tool_proc
-    privileged: true
-    pid: host
-    network_mode: host
-    environment:
-      - ROS_MASTER_URI=http://localhost:11311
-    volumes:
-      - /sys/kernel/debug:/sys/kernel/debug:rw
-      - /lib/modules:/lib/modules:ro
-      - /usr/src:/usr/src:ro
-    stdin_open: true
-    tty: true
-    command:
-      - "bash"
-      - "-c"
-      - "source /catkin_ws/devel/setup.bash && echo 'Run: rostrace trace --node /processing_delay_node --topic /slow_topic' && sleep infinity"
