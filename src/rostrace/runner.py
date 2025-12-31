@@ -102,25 +102,50 @@ class Runner:
         This handles both native and containerized processes (relative to the host).
         """
         maps_path = f"/proc/{pid}/maps"
+        logger.debug("Scanning maps file: %s", maps_path)
+        found_in_maps = False
         try:
             with open(maps_path, "r") as f:
                 for line in f:
                     if "libroscpp.so" in line:
+                        found_in_maps = True
                         parts = line.split()
                         if len(parts) >= 6:
                             path = parts[5]
                             # Handle container perspective
                             full_path = f"/proc/{pid}/root{path}"
+
+                            logger.debug(
+                                "Checking map entry: '%s' -> Host path: '%s'",
+                                path,
+                                full_path,
+                            )
+
                             if os.path.exists(full_path):
+                                logger.debug(
+                                    "Found accessible path via /proc: %s", full_path
+                                )
                                 return full_path
                             elif os.path.exists(path):
+                                logger.debug("Found accessible path locally: %s", path)
                                 return path
+                            else:
+                                logger.debug(
+                                    "Path not accessible: %s AND %s", full_path, path
+                                )
         except PermissionError:
             logger.error(
                 "Permission denied reading %s. Try running with root/sudo.", maps_path
             )
         except Exception as e:
             logger.error("Error scanning process maps at %s: %s", maps_path, e)
+
+        if found_in_maps:
+            logger.warning(
+                "Found 'libroscpp.so' in maps, but could not access the file on disk."
+            )
+        else:
+            logger.warning("No 'libroscpp.so' entry found in %s", maps_path)
 
         return None
 
@@ -157,6 +182,41 @@ class Runner:
         # KNOWN LIMITATION: May hook overloads if the void signature is missing.
         return min(candidates, key=len)
 
+    def is_python_process(self, pid: int) -> bool:
+        """
+        Checks if the process is a Python interpreter.
+        """
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                # cmdline arguments are null-separated
+                cmdline = f.read().decode(errors="ignore").replace("\0", " ")
+            if "python" in cmdline or "rospy" in cmdline:
+                return True
+        except Exception as e:
+            logger.debug("Could not check process cmdline: %s", e)
+        return False
+
+    def resolve_exe_path(self, pid: int) -> Optional[str]:
+        """
+        Resolves the executable path from /proc/PID/exe.
+        Handles container paths relative to host.
+        """
+        try:
+            exe_link = f"/proc/{pid}/exe"
+            if os.path.exists(exe_link):
+                # readlink gives the path inside the container/namespace
+                container_path = os.readlink(exe_link)
+                # Convert to host path
+                host_path = f"/proc/{pid}/root{container_path}"
+                if os.path.exists(host_path):
+                    return host_path
+                # Fallback: maybe it's accessible directly (host process)
+                if os.path.exists(container_path):
+                    return container_path
+        except Exception as e:
+            logger.debug("Failed to resolve exe path for PID %d: %s", pid, e)
+        return None
+
     def run(self) -> None:
         if not self.check_preflight():
             return
@@ -188,10 +248,47 @@ class Runner:
         else:
             lib_path = self.get_libroscpp_path(target_pid)
             if not lib_path:
-                logger.warning(
-                    "libroscpp.so not found in maps. Falling back to default."
-                )
-                lib_path = "/opt/ros/noetic/lib/libroscpp.so"
+                # Check for common incompatibility causes
+                if self.is_python_process(target_pid):
+                    logger.error(
+                        "Target PID %d appears to be a Python process.", target_pid
+                    )
+                    logger.error("rostrace currently ONLY supports C++ (roscpp) nodes.")
+                    logger.error(
+                        "Python nodes (rospy) use a different middleware "
+                        "implementation not yet supported."
+                    )
+                    return
+
+                # Check if symbols are statically linked in the main executable
+                # (e.g., Bazel)
+                exe_path = self.resolve_exe_path(target_pid)
+                if exe_path:
+                    logger.debug(
+                        "Checking for static symbols in executable: %s", exe_path
+                    )
+                    # Use a characteristic symbol to test
+                    if self.resolve_symbol(exe_path, "*Subscription*handleMessage*"):
+                        logger.info(
+                            "libroscpp.so not found, but symbols detected in "
+                            "executable: %s",
+                            exe_path,
+                        )
+                        lib_path = exe_path
+
+                if not lib_path:
+                    logger.warning(
+                        "libroscpp.so not found in maps and no static symbols detected."
+                    )
+                    logger.warning(
+                        "Falling back to default system library: "
+                        "/opt/ros/noetic/lib/libroscpp.so"
+                    )
+                    logger.warning(
+                        "If the trace is empty, try pointing --lib to your node's "
+                        "executable."
+                    )
+                    lib_path = "/opt/ros/noetic/lib/libroscpp.so"
             else:
                 logger.info("Auto-detected libroscpp.so at: %s", lib_path)
 
